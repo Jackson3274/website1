@@ -1,41 +1,45 @@
-// script.js
-const messages = JSON.parse(localStorage.getItem('messages')) || [];
+// app.js
+const form = document.querySelector('form');
+const messageInput = document.querySelector('#message-input');
+const messagesList = document.querySelector('#messages');
 
-function renderMessages() {
-  const messagesDiv = document.querySelector('#messages');
-  messagesDiv.innerHTML = '';
+const socket = io();
 
-  messages.forEach((message) => {
-    const p = document.createElement('p');
-    p.textContent = message;
-    messagesDiv.appendChild(p);
-  });
+function displayMessage(message) {
+  const messageElement = document.createElement('li');
+  messageElement.classList.add('message');
+  messageElement.innerHTML = `
+    <p>${message.text}</p>
+    <div class="meta">
+      <span>${message.user}</span>
+      <span class="time">${new Date(message.timestamp).toLocaleTimeString()}</span>
+    </div>
+  `;
+  messagesList.appendChild(messageElement);
 }
 
-function sendMessage() {
-  const messageInput = document.querySelector('#message-input');
-  const message = messageInput.value.trim();
+// Get the current messages from the server
+socket.on('messages', function(messages) {
+  messages.forEach(displayMessage);
+});
 
-  if (message === '') {
-    return;
-  }
+// Send a message to the server
+form.addEventListener('submit', function(event) {
+  event.preventDefault();
 
-  messages.push(message);
-  localStorage.setItem('messages', JSON.stringify(messages));
-  renderMessages();
+  const message = {
+    user: 'You',
+    text: messageInput.value.trim(),
+    timestamp: Date.now()
+  };
+
+  socket.emit('send', message);
+
+  displayMessage(message);
   messageInput.value = '';
-}
+});
 
-document.addEventListener('DOMContentLoaded', () => {
-  renderMessages();
-
-  const sendButton = document.querySelector('#send-button');
-  sendButton.addEventListener('click', sendMessage);
-
-  const messageInput = document.querySelector('#message-input');
-  messageInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      sendMessage();
-    }
-  });
+// Receive new messages from the server
+socket.on('message', function(message) {
+  displayMessage(message);
 });
